@@ -2,12 +2,13 @@ name: Frontend CI
 
 on:
   push:
-    paths:
-      - frontend/**
-      - ".github/workflows/backend.yml"
-
     branches:
       - main
+    paths:
+      - frontend/**
+      - ".github/workflows/frontend.yml"
+  workflow_dispatch:
+
 env:
   IMAGE_VERSION: v1.0.${{ github.run_number }}
   ECR_REPOSITORY: mission-control-frontend
@@ -17,20 +18,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build and push frontend image
-      run: |
-        docker build -t $ECR_REGISTRY/${{ secrets.ECR_FRONTEND_REPO }}:latest ./frontend
-        docker push $ECR_REGISTRY/${{ secrets.ECR_FRONTEND_REPO }}:latest
+      - name: Build and push frontend image
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        run: |
+          # Build image
+          docker build -t frontend:${IMAGE_VERSION} ./frontend
+
+          # Tag versioned and latest images
+          docker tag frontend:${IMAGE_VERSION} \
+            $ECR_REGISTRY/${ECR_REPOSITORY}:${IMAGE_VERSION}
+
+          docker tag frontend:${IMAGE_VERSION} \
+            $ECR_REGISTRY/${ECR_REPOSITORY}:latest
+
+          # Push both tags
+          docker push $ECR_REGISTRY/${ECR_REPOSITORY}:${IMAGE_VERSION}
+          docker push $ECR_REGISTRY/${ECR_REPOSITORY}:latest
