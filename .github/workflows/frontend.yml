@@ -2,33 +2,47 @@ name: Frontend CI
 
 on:
   push:
+    branches:
+      - main
     paths:
-      - frontend/**
+      - "frontend/**"
       - ".github/workflows/frontend.yml"
-  workflow_dispatch:
+env:
+  AWS_REGION: eu-central-1
+  ECR_REPOSITORY: mission-control-frontend
+  IMAGE_TAG: v1.0.${{ github.run_number }}
 
 jobs:
-  build-and-push:
+  frontend-build-push:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      # 1️⃣ Checkout code
+      - name: Checkout source code
         uses: actions/checkout@v4
 
+      # 2️⃣ Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
+      # 3️⃣ Login to Amazon ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push frontend image
+      # 4️⃣ Build Docker image
+      - name: Build Docker image
         run: |
-          docker build -t frontend:latest ./frontend
-          docker tag frontend:latest $ECR_REGISTRY/my-private-registry:frontend-latest
-          docker push $ECR_REGISTRY/my-private-registry:frontend-latest
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          docker build \
+            -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
+            -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest \
+            ./frontend
+
+      # 5️⃣ Push Docker image
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
