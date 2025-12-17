@@ -9,3 +9,6 @@ COPY --from=builder /app/server .
 ENV APP_VERSION=v1.0.0
 EXPOSE 8080
 CMD ["./server"]
+
+
+#comment
