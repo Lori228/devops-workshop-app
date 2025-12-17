@@ -2,49 +2,32 @@ name: Backend CI
 
 on:
   push:
-    branches:
-      - main
     paths:
-      - "backend/**"
-      - ".github/workflows/backend.yml"
-	
-
-env:
-  AWS_REGION: eu-central-1
-  ECR_REPOSITORY: mission-control-backend
-  IMAGE_TAG: v1.0.${{ github.run_number }}
+      - backend/**
+  workflow_dispatch:
 
 jobs:
-  backend-build-push:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout code
-      - name: Checkout source code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      # 3️⃣ Login to Amazon ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # 4️⃣ Build Docker image
-      - name: Build Docker image
+      - name: Build and push backend image
         run: |
-          docker build \
-            -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} \
-            -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest \
-            ./backend
-
-      # 5️⃣ Push Docker image to ECR
-      - name: Push Docker image
-        run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+          docker build -t backend:latest ./backend
+          docker tag backend:latest $ECR_REGISTRY/my-private-registry:backend-latest
+          docker push $ECR_REGISTRY/my-private-registry:backend-latest
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
